@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Panel</title>
+    <link rel="stylesheet" href="./style.css" />
+
+</head>
+<body>
+
+    <div class="login-container">
+        <h2>Login</h2>
+        <form id="login-form" class="form-group">
+            <div>
+                <label for="email">Email ID:</label>
+                <input type="text" id="email" name="email" placeholder="Enter your username" required>
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" placeholder="Enter your password" required>
+            </div>
+            <div>
+                <button type="submit" id="login-btn">Login</button>
+            </div>
+        </form>
+
+        <form id="register-form" class="form-group" style="display: none;">
+            <div>
+                <label for="full-name">Enter your full name:</label>
+                <input type="text" id="full-name" name="full-name" placeholder="Enter your full name" required>
+            </div>
+            <div>
+                <label for="new-email">Email ID:</label>
+                <input type="text" id="new-email" name="new-email" placeholder="Enter your new email" required>
+            </div>
+            <div>
+                <label for="new-password">Password:</label>
+                <input type="password" id="new-password" name="new-password" placeholder="Enter your new password" required>
+            </div>
+            <div>
+                <button type="submit" id="register-btn">Register</button>
+            </div>
+        </form>
+
+        <a href="#" id="create-account-link" class="create-account-link">Create a new account</a>
+    </div>
+
+    <script>
+        const loginForm = document.getElementById('login-form')
+        const registerForm = document.getElementById('register-form')
+        const createAccountLink = document.getElementById('create-account-link');
+        createAccountLink.addEventListener('click', function () {
+            // Toggle between login and register forms
+            loginForm.style.display = loginForm.style.display === 'none' ? 'block' : 'none';
+            registerForm.style.display = registerForm.style.display === 'none' ? 'block' : 'none';
+    
+            const messageForAccountCreated = document.getElementById('create-account-link').textContent;
+            document.getElementById('create-account-link').textContent = messageForAccountCreated 
+                    === 'Login into existing account' ? "Create a new account" : 'Login into existing account';
+        });
+    
+        function loginHandler() {
+            event.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            const url = "http://localhost:3000/auth/login";
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            
+                body: 'email=' + encodeURIComponent(email) +
+                    '&password=' + encodeURIComponent(password)
+            })
+            .then((res) => res.json())
+            .then((res) => {
+                if(res.hasOwnProperty('accessToken')){
+                    window.location.href = './homePage.html'
+                }
+                else{
+                    throw new Error(res.error.message)
+                }
+            })
+            .catch((error) => {
+                console.log(error)
+                alert(`Error: ${error.message}`)
+                // window.location.href = './index.html'
+            });
+        }
+        const loginButton = document.getElementById('login-btn');
+        loginButton.addEventListener('click', loginHandler);
+    
+        function registerHandler() {
+            event.preventDefault();
+                
+            const email = document.getElementById('new-email').value;
+            const fullName = document.getElementById('full-name').value;
+            const password = document.getElementById('new-password').value;
+            
+            const url = "http://localhost:3000/auth/register";
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+            
+                body: 'email=' + encodeURIComponent(email) +
+                    '&fullName=' + encodeURIComponent(fullName) +
+                    '&password=' + encodeURIComponent(password)
+            })
+            .then((res) => res.json())
+            .then((res) => {
+                if(res.hasOwnProperty('accessToken')){
+                    window.location.href = './homePage.html'
+                }
+                else{
+                    throw new Error(res.error.message)
+                }
+            })
+            .catch((error) => {
+                alert(`Error: ${error.message}`)
+            });
+        }
+        const registerBtn = document.getElementById('register-btn');
+        registerBtn.addEventListener('click', registerHandler);
+    </script>    
+
+</body>
+</html>

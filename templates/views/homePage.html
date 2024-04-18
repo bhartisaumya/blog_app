@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Management</title>
+    <link rel="stylesheet" href="./homePageStyle.css">
+</head>
+<body>
+    <h1>Note Taking Application</h1>
+
+    <!-- Form to submit a new note post -->
+    <form id="noteForm">
+        <label for="note-title">Note Title:</label><br>
+        <textarea id="note-title" name="note-title" placeholder="Enter Note Title..." required></textarea><br>
+        
+        <label for="note-content">Note Content:</label><br>
+        <textarea id="note-content" name="note-content" placeholder="Enter Note Content..." required></textarea><br>
+
+        <button type="submit" id="submit-btn">Submit</button>
+    </form>
+
+    <!-- Note list -->
+    <div id="note-list">
+        <h2>Saved Notes</h2>
+        <ul id="postsList"></ul>
+    </div>
+
+    <div class="popup" id="commentsPopup">
+        <h2>Comments</h2>
+        <ul id="comment-list">
+            <!-- Comments will be added here dynamically -->
+        </ul>
+        <button class="close-btn" onclick="removeConfirmation()">Close</button>
+    </div>
+
+    <!-- Overlay for background when popup is open -->
+    <div class="overlay" id="overlay"></div>
+
+    <div id="confirmation-page">
+        <p>Are you sure you want to delete this note?</p>
+        <div id="confirmation-btns">
+            <button id="confirm-delete" onclick="deleteNote()">Delete</button>
+            <button id="cancel-delete" onclick="removeConfirmation()">Cancel</button>
+        </div>
+    </div>
+
+    <button id="logout-btn" onclick="logout()">Logout</button>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", displayNotePost)
+        document.getElementById('noteForm').addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            const title = document.getElementById('note-title').value;
+            const content = document.getElementById('note-content').value;
+
+            fetch('http://localhost:3000/notes/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, content }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                displayNotePost();
+                clearForm();
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        function displayNotePost() {
+            const postsList = document.getElementById('postsList');
+
+            fetch('http://localhost:3000/notes/all', {
+                method: 'GET'
+            })
+            .then(res => res.json())
+            .then((res) => {
+                postsList.innerHTML = ''
+                res.forEach(note => {
+                    const listItem = document.createElement('li');
+                    listItem.innerHTML =
+                    `
+                    <div class="note-details">
+                        <span class="public-tag">Public</span>
+                        <button class="public-link">Copy link</button>
+
+
+                        <label for="saved-note-title">Title:</label>
+                        <textarea class="saved-note-title" required>${note.title}</textarea>
+
+                        <label for="saved-note-content">Content:</label>
+                        <textarea class="saved-note-content" required>${note.content}</textarea>
+
+                        <div class="btn-section">
+                            <button class="edit-btn">Edit</button>
+                            <button class="delete-note">Delete</button>
+                            <button class="note-comment">Comment</button>
+
+                            <button class="save-changes" style="display: none;">Save Changes</button>
+                        </div>
+                    </div>
+                    `     
+                    
+
+                    const commentBtn = listItem.querySelector('.note-comment')
+                    commentBtn.addEventListener('click', showComments)
+
+                    function showComments(){
+                        console.log("show comments")
+                        fetch('http://localhost:3000/comments/' + note._id, {
+                            method: 'GET'
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                            const commentsPopup = document.getElementById('commentsPopup')
+                            commentsPopup.style.display = 'block'
+
+                            const commentSection = document.getElementById('comment-list')
+                            commentSection.innerHTML = ''
+                            res.forEach(comment => {
+                                console.log(comment.comment)
+                                const commentElement = document.createElement('li')
+                                commentElement.textContent = comment.comment;
+                                commentSection.append(commentElement)
+                            })
+                        })
+                    }
+                                   
+
+                    const copyBtn = listItem.querySelector('.public-link')
+                    const publicTag = listItem.querySelector('.public-tag')
+                    publicTag.addEventListener('click', () => {
+                        const originalVal = publicTag.textContent
+                        publicTag.textContent = originalVal === 'Public' ? 'Private' : 'Public'
+
+                        const notePublic = publicTag.textContent === 'Public'
+
+                        fetch("http://localhost:3000/notes/" + note._id, {
+                            method: 'PATCH',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({public: notePublic})
+                        })
+                        .then(res => res.json())
+                        .then(res => {
+                            console.log(res)
+                            if(res.hasOwnProperty('_id'))
+                                window.location.reload()
+                            else
+                                throw new Error(res.error.message)
+                        })
+                        .catch(error => alert(error.message))
+                    })
+
+                    if(!note.public){
+                        publicTag.textContent = 'Private'
+                        copyBtn.style.display = 'none'
+                    }
+
+                    copyBtn.addEventListener('click', function(){
+                        copyToClipboard(note._id)
+                    })
+
+                    const contentBox = listItem.querySelector('.saved-note-content')
+                    const titleBox = listItem.querySelector('.saved-note-title')
+
+                    contentBox.disabled = true
+                    titleBox.disabled = true
+
+                    const saveChangesBtn = listItem.querySelector('.save-changes');
+                    saveChangesBtn.style.display = 'none'
+                    saveChangesBtn.addEventListener('click', function(){
+                        const content = contentBox.value
+                        const title = titleBox.value
+
+                        updateNote({noteId: note._id, content, title})
+                    })
+
+                    const deleteBtn = listItem.querySelector('.delete-note');
+                    deleteBtn.addEventListener('click', function(){
+                        window.localStorage.setItem('noteId', note._id)
+                        showConfirmation()
+                        // deleteNote(note._id)
+                    })
+
+                    const editBtn = listItem.querySelector('.edit-btn')
+                    editBtn.addEventListener('click', () => {
+                        deleteBtn.style.display = 'none'
+
+                        contentBox.disabled = false;
+                        titleBox.disabled = false;
+                        editBtn.style.display = 'none';
+                        saveChangesBtn.style.display = 'block';
+                    })
+                    postsList.appendChild(listItem);
+                })
+            })
+            .catch(error => console.log(error))
+        }
+
+        function copyToClipboard(noteId){
+            // Create a temporary input element
+            const tempInput = document.createElement("input");
+
+            console.log(noteId)
+
+            
+            // Set the value to be copied
+            tempInput.value = "http://localhost:3000/notes/public/" + noteId;
+
+            document.body.appendChild(tempInput);
+
+            tempInput.select();
+            tempInput.setSelectionRange(0, 99999); // For mobile devices
+
+            document.execCommand("copy");
+
+            document.body.removeChild(tempInput);   
+        }
+
+
+        function showConfirmation() {
+            const confirmationPage = document.getElementById('confirmation-page');
+            confirmationPage.style.display = 'block';
+        }
+
+        function removeConfirmation() {
+            const confirmationPage = document.getElementById('confirmation-page');
+            confirmationPage.style.display = 'none';
+            const commentPopup = document.getElementById('commentsPopup');
+            commentPopup.style.display = 'none'
+        }
+
+        function deleteNote() {
+            event.preventDefault();
+            console.log("DeleteNote function")
+
+            const noteId = window.localStorage.getItem('noteId')
+                
+            fetch("http://localhost:3000/notes/" + noteId, {
+                method: 'DELETE',
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.hasOwnProperty('_id')){
+                    console.log("Note Updated")
+                    window.location.reload()
+                }
+                else
+                    throw new Error(res.message)
+            })
+            .catch((error) => {
+                alert(`Error: ${error.message}`)
+            });
+        }
+            
+
+        const saveChangeBtn = document.getElementById('save-changes')
+        saveChangeBtn.addEventListener('click', updateNote)
+
+        function updateNote(props) {
+            event.preventDefault();
+            console.log("updateNote function")
+
+            const {noteId, title, content} = props
+
+            console.log(props)
+                
+            fetch("http://localhost:3000/notes/" + noteId, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({title, content})
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.hasOwnProperty('_id')){
+                    console.log("Note Updated")
+                    window.location.reload()
+                }
+                else
+                    throw new Error(res.message)
+            })
+            .catch((error) => {
+                alert(`Error: ${error.message}`)
+            });
+        }
+
+        const logoutBtn = document.getElementById('logout-btn')
+        logoutBtn.addEventListener('click', (e) => {
+            window.location.href = './index.html'
+        })
+
+
+        function clearForm() {
+            document.getElementById('note-title').value = '';
+            document.getElementById('note-content').value = '';
+        }   
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Display</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+
+        .note-container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        #note-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        .note-content {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .comment-section {
+            margin-top: 20px;
+        }
+
+        #comment-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+
+        #comment-btn {
+            background-color: #4CAF50;
+            color: white;
+            padding: 8px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .comment-btn:hover {
+            background-color: #45a049;
+        }
+
+        .comments {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .comment {
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            padding: 8px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="note-container">
+        <div id="note-id" style="display: none;">{{notes._id}}</div>
+        <div id="note-title">{{notes.title}}</div>
+        <div id="note-content">{{notes.content}}</div>
+
+        <div class="comment-section">
+            <input type="text" id="comment-input" placeholder="Add a comment...">
+            <button id="comment-btn">Add Comment</button>
+        </div>
+    </div>
+
+    <script >
+
+        const noteId = document.getElementById('note-id').textContent
+
+        const addCommentBtn = document.getElementById('comment-btn')
+        addCommentBtn.addEventListener('click', addComment)
+
+        function addComment(){
+            const comment = document.getElementById('comment-input').value
+            console.log(comment)
+            console.log("addCommenklmt")
+            fetch('http://localhost:3000/comments', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({noteId, comment})
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.hasOwnProperty('_id')){
+                    alert("Comment Added");
+                    displayComments()
+                }
+                else
+                    throw new Error(res.error.message)
+            })
+            .catch(error => {
+                alert(error.message)
+            }) 
+        }
+    </script>
+
+</body>
+</html>
